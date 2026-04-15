@@ -70,7 +70,7 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
         content: data.content,
         isAnonymous: data.isAnonymous,
         isSecret: data.isSecret,
-        password: data.isSecret ? data.password : undefined,
+        ...(data.isSecret ? { password: data.password } : {}),
         toppingId: selectedTopping.id,
         positionX,
         positionY,
