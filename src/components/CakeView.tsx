@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { CakeTypeInfo, Message } from '@/lib/types';
 import { getToppingById } from '@/data/toppings';
 
@@ -10,6 +11,8 @@ interface CakeViewProps {
   ownerName: string;
   birthday: string;
 }
+
+const SPRINKLE_COLORS = ['#FF6B8A', '#FFD93D', '#6BCB77', '#4D96FF', '#FF8B94', '#C084FC', '#FB923C'];
 
 export default function CakeView({
   cakeType,
@@ -31,6 +34,25 @@ export default function CakeView({
     const diff = thisYear.getTime() - today.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   })();
+
+  // Deterministic sprinkles
+  const sprinkles = useMemo(() =>
+    Array.from({ length: 18 }, (_, i) => ({
+      left: 8 + ((i * 41 + 7) % 84),
+      top: 12 + ((i * 29 + 13) % 65),
+      rotation: (i * 47) % 180,
+      color: SPRINKLE_COLORS[i % SPRINKLE_COLORS.length],
+    })), []);
+
+  // Deterministic cream puffs positions along the elliptical edge
+  const creamPuffs = useMemo(() =>
+    Array.from({ length: 14 }, (_, i) => {
+      const angle = (i / 14) * Math.PI;
+      return {
+        left: 50 + Math.cos(angle) * 46,
+        top: 50 + Math.sin(angle) * 30,
+      };
+    }), []);
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -64,40 +86,86 @@ export default function CakeView({
           }}
         />
 
-        {/* Cake wrapper - toppings are positioned within this */}
+        {/* Cake wrapper - toppings positioned within this */}
         <div className="relative w-[300px]">
           {/* Cake top surface */}
           <div
             className="w-full h-[50px] rounded-[50%] relative z-[5]"
             style={{
-              background: `linear-gradient(135deg, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
+              background: `radial-gradient(ellipse at 35% 35%, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
               boxShadow: `inset 0 -3px 10px rgba(0,0,0,0.06), 0 0 0 1px ${cakeType.borderColor}50`,
             }}
-          />
+          >
+            {/* Decorative swirl on top */}
+            <div
+              className="absolute inset-[10px] rounded-[50%]"
+              style={{
+                border: `1.5px dashed ${cakeType.borderColor}35`,
+              }}
+            />
+          </div>
+
+          {/* Cream piping along top-body edge */}
+          <div className="absolute z-[6]" style={{ top: '28px', left: '0', width: '100%', height: '30px' }}>
+            {creamPuffs.map((puff, i) => (
+              <div
+                key={i}
+                className="absolute w-[18px] h-[14px] rounded-full -translate-x-1/2 -translate-y-1/2"
+                style={{
+                  left: `${puff.left}%`,
+                  top: `${puff.top}%`,
+                  background: `radial-gradient(ellipse at 40% 35%, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
+                  boxShadow: `0 1px 2px rgba(0,0,0,0.08)`,
+                }}
+              />
+            ))}
+          </div>
 
           {/* Cake body */}
           <div
             className="w-full h-[150px] -mt-[25px] rounded-b-[18px] relative overflow-hidden"
             style={{
               background: `linear-gradient(180deg, ${cakeType.sideColor} 0%, ${cakeType.gradientTo} 100%)`,
-              boxShadow: `inset 1px 0 0 ${cakeType.borderColor}30, inset -1px 0 0 ${cakeType.borderColor}30, 0 0 0 1px ${cakeType.borderColor}20`,
+              boxShadow: `inset 2px 0 6px rgba(0,0,0,0.03), inset -2px 0 6px rgba(0,0,0,0.03), 0 0 0 1px ${cakeType.borderColor}20`,
             }}
           >
-            {/* Frosting edge at top */}
+            {/* Frosting edge glow at top */}
             <div
-              className="absolute top-0 left-0 w-full h-[8px]"
+              className="absolute top-0 left-0 w-full h-[10px]"
               style={{
-                background: `linear-gradient(180deg, ${cakeType.gradientFrom}aa, transparent)`,
+                background: `linear-gradient(180deg, ${cakeType.gradientFrom}bb, transparent)`,
               }}
             />
 
-            {/* Subtle layer divider */}
-            <div className="absolute w-full" style={{ top: '50%' }}>
+            {/* Cream filling layer */}
+            <div
+              className="absolute w-full h-[10px]"
+              style={{
+                top: '47%',
+                background: `linear-gradient(180deg, transparent 0%, ${cakeType.gradientFrom}50 30%, ${cakeType.gradientFrom}70 50%, ${cakeType.gradientFrom}50 70%, transparent 100%)`,
+              }}
+            />
+
+            {/* Sprinkles */}
+            {sprinkles.map((s, i) => (
               <div
-                className="h-[1px] mx-4 rounded-full"
-                style={{ background: `${cakeType.borderColor}20` }}
+                key={i}
+                className="absolute w-[3px] h-[8px] rounded-full"
+                style={{
+                  left: `${s.left}%`,
+                  top: `${s.top}%`,
+                  background: s.color,
+                  transform: `rotate(${s.rotation}deg)`,
+                  opacity: 0.55,
+                }}
               />
-            </div>
+            ))}
+
+            {/* Subtle highlight for dimension */}
+            <div
+              className="absolute top-0 left-[15%] w-[20%] h-full opacity-[0.06] rounded-full"
+              style={{ background: 'white' }}
+            />
           </div>
 
           {/* Cake base */}

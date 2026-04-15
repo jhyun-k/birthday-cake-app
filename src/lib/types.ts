@@ -3,6 +3,7 @@ export interface Cake {
   ownerName: string;
   birthday: string; // YYYY-MM-DD
   cakeType: CakeType;
+  adminPassword: string; // 4-digit PIN
   createdAt: number;
 }
 

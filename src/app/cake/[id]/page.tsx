@@ -32,12 +32,17 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
   const [notFound, setNotFound] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showManageMenu, setShowManageMenu] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const prevMessageCount = useRef<number>(0);
   const initialLoad = useRef(true);
   const cakeViewRef = useRef<HTMLDivElement>(null);
+
+  // Admin auth
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
 
   const addToast = useCallback((text: string, emoji?: string) => {
     const id = Date.now().toString();
@@ -107,6 +112,19 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
     return () => { unsub?.(); };
   }, [id, addToast]);
 
+  const handlePasswordSubmit = () => {
+    if (!cake) return;
+    if (passwordInput === cake.adminPassword) {
+      setIsAdmin(true);
+      setShowPasswordModal(false);
+      setPasswordInput('');
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+      setPasswordInput('');
+    }
+  };
+
   const handleDeleteCake = async () => {
     try {
       await deleteCake(id);
@@ -165,9 +183,31 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
   const cakeTypeInfo = getCakeTypeInfo(cake.cakeType);
 
   return (
-    <div className="flex-1 flex flex-col items-center px-4 py-8 max-w-2xl mx-auto w-full">
+    <div className="flex-1 flex flex-col items-center px-4 py-8 max-w-2xl mx-auto w-full relative">
       {/* Toast notifications */}
       <Toast messages={toasts} onRemove={removeToast} />
+
+      {/* Settings gear - top right */}
+      <button
+        onClick={() => {
+          if (isAdmin) {
+            setIsAdmin(false);
+          } else {
+            setShowPasswordModal(true);
+          }
+        }}
+        className={`absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-all ${
+          isAdmin
+            ? 'bg-pink-500 text-white shadow-md'
+            : 'bg-white/80 text-gray-400 hover:text-gray-600 hover:bg-white shadow-sm border border-gray-100'
+        }`}
+        title={isAdmin ? '관리 모드 끄기' : '관리자 인증'}
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
 
       {/* Cake display */}
       <div ref={cakeViewRef}>
@@ -202,45 +242,34 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
         </Link>
         <ShareButton cakeId={id} ownerName={cake.ownerName} />
         <CakeCapture targetRef={cakeViewRef} ownerName={cake.ownerName} />
-
-        {/* Manage menu */}
-        <div className="relative">
-          <button
-            onClick={() => setShowManageMenu(!showManageMenu)}
-            className="flex items-center gap-1 px-4 py-2.5 bg-white border-2 border-gray-200 text-gray-500 font-medium rounded-full hover:bg-gray-50 transition-all shadow-sm active:scale-95"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-            </svg>
-            관리
-          </button>
-          {showManageMenu && (
-            <div className="absolute top-full mt-2 right-0 bg-white rounded-xl shadow-xl border border-gray-100 p-2 min-w-[160px] z-50 animate-modal-pop">
-              <button
-                onClick={() => { setShowEditModal(true); setShowManageMenu(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm text-gray-700"
-              >
-                <span>✏️</span>
-                케이크 수정
-              </button>
-              <button
-                onClick={() => { setShowDeleteConfirm(true); setShowManageMenu(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors text-sm text-red-500"
-              >
-                <span>🗑️</span>
-                케이크 삭제
-              </button>
-            </div>
-          )}
-        </div>
       </div>
+
+      {/* Admin actions - only visible when authenticated */}
+      {isAdmin && (
+        <div className="flex items-center gap-3 mt-4 animate-modal-pop">
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-pink-200 text-pink-500 font-medium rounded-full hover:bg-pink-50 transition-all shadow-sm active:scale-95 text-sm"
+          >
+            <span>✏️</span>
+            케이크 수정
+          </button>
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-red-200 text-red-500 font-medium rounded-full hover:bg-red-50 transition-all shadow-sm active:scale-95 text-sm"
+          >
+            <span>🗑️</span>
+            케이크 삭제
+          </button>
+        </div>
+      )}
 
       {/* Message list */}
       <div className="w-full mt-10 bg-white/60 backdrop-blur-sm rounded-2xl p-6 border border-pink-100">
         <MessageList
           messages={messages}
           onMessageClick={setSelectedMessage}
-          onMessageDelete={handleDeleteMessage}
+          onMessageDelete={isAdmin ? handleDeleteMessage : undefined}
         />
       </div>
 
@@ -257,6 +286,59 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
           onClose={() => setShowEditModal(false)}
           onSaved={handleCakeSaved}
         />
+      )}
+
+      {/* Password verification modal */}
+      {showPasswordModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => { setShowPasswordModal(false); setPasswordInput(''); setPasswordError(false); }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 animate-modal-pop"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <div className="text-3xl mb-3">🔐</div>
+              <h3 className="text-lg font-bold text-gray-800 mb-1">관리자 인증</h3>
+              <p className="text-sm text-gray-500 mb-5">
+                케이크 생성 시 설정한 비밀번호를 입력해주세요
+              </p>
+              <input
+                type="password"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={passwordInput}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+                  setPasswordInput(v);
+                  setPasswordError(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && passwordInput.length === 4) handlePasswordSubmit();
+                }}
+                placeholder="0000"
+                className={`w-full px-4 py-3 rounded-xl border-2 outline-none transition-all text-2xl tracking-[0.5em] text-center font-bold ${
+                  passwordError
+                    ? 'border-red-400 bg-red-50 animate-shake'
+                    : 'border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100'
+                }`}
+                maxLength={4}
+                autoFocus
+              />
+              {passwordError && (
+                <p className="text-sm text-red-500 mt-2">비밀번호가 틀렸어요</p>
+              )}
+              <button
+                onClick={handlePasswordSubmit}
+                disabled={passwordInput.length !== 4}
+                className="w-full mt-4 py-3 px-4 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-bold rounded-xl hover:from-pink-600 hover:to-orange-500 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirmation modal */}

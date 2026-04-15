@@ -12,11 +12,12 @@ export default function CakeCreator() {
   const [ownerName, setOwnerName] = useState('');
   const [birthday, setBirthday] = useState('');
   const [cakeType, setCakeType] = useState<CakeType>('cream');
+  const [adminPassword, setAdminPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ownerName.trim() || !birthday) return;
+    if (!ownerName.trim() || !birthday || adminPassword.length !== 4) return;
 
     setIsLoading(true);
     try {
@@ -26,6 +27,7 @@ export default function CakeCreator() {
         ownerName: ownerName.trim(),
         birthday,
         cakeType,
+        adminPassword,
         createdAt: Date.now(),
       });
       router.push(`/cake/${id}`);
@@ -106,10 +108,34 @@ export default function CakeCreator() {
         </div>
       </div>
 
+      {/* Admin password */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          관리 비밀번호 (숫자 4자리)
+        </label>
+        <p className="text-xs text-gray-400 mb-2">
+          케이크 수정/삭제 시 필요해요
+        </p>
+        <input
+          type="password"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={adminPassword}
+          onChange={(e) => {
+            const v = e.target.value.replace(/\D/g, '').slice(0, 4);
+            setAdminPassword(v);
+          }}
+          placeholder="0000"
+          className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-pink-400 focus:ring-2 focus:ring-pink-100 outline-none transition-all text-lg tracking-[0.5em] text-center"
+          required
+          maxLength={4}
+        />
+      </div>
+
       {/* Submit */}
       <button
         type="submit"
-        disabled={isLoading || !ownerName.trim() || !birthday}
+        disabled={isLoading || !ownerName.trim() || !birthday || adminPassword.length !== 4}
         className="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-orange-400 text-white font-bold text-lg rounded-xl hover:from-pink-600 hover:to-orange-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl active:scale-[0.98]"
       >
         {isLoading ? (
