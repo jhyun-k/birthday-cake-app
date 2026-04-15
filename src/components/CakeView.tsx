@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
 import { CakeTypeInfo, Message } from '@/lib/types';
 import { getToppingById } from '@/data/toppings';
 
@@ -8,7 +7,6 @@ interface CakeViewProps {
   cakeType: CakeTypeInfo;
   messages: Message[];
   onToppingClick: (message: Message) => void;
-  onToppingMove?: (messageId: string, positionX: number, positionY: number) => void;
   ownerName: string;
   birthday: string;
 }
@@ -17,7 +15,6 @@ export default function CakeView({
   cakeType,
   messages,
   onToppingClick,
-  onToppingMove,
   ownerName,
   birthday,
 }: CakeViewProps) {
@@ -34,75 +31,6 @@ export default function CakeView({
     const diff = thisYear.getTime() - today.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   })();
-
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const cakeTopRef = useRef<HTMLDivElement>(null);
-  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
-  const hasMoved = useRef(false);
-
-  const getPositionFromEvent = useCallback((clientX: number, clientY: number) => {
-    if (!cakeTopRef.current) return null;
-    const rect = cakeTopRef.current.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    const y = ((clientY - rect.top) / rect.height) * 100;
-    return {
-      x: Math.max(10, Math.min(90, x)),
-      y: Math.max(10, Math.min(90, y)),
-    };
-  }, []);
-
-  const handlePointerDown = (e: React.PointerEvent, msg: Message) => {
-    if (!onToppingMove) return;
-    e.preventDefault();
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    setDraggingId(msg.id);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-    hasMoved.current = false;
-
-    const pos = getPositionFromEvent(e.clientX, e.clientY);
-    if (pos) {
-      setDragOffset({ x: msg.positionX - pos.x, y: msg.positionY - pos.y });
-    }
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingId || !onToppingMove) return;
-    e.preventDefault();
-
-    if (dragStartPos.current) {
-      const dx = Math.abs(e.clientX - dragStartPos.current.x);
-      const dy = Math.abs(e.clientY - dragStartPos.current.y);
-      if (dx > 5 || dy > 5) {
-        hasMoved.current = true;
-      }
-    }
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!draggingId) return;
-
-    if (hasMoved.current && onToppingMove) {
-      const pos = getPositionFromEvent(e.clientX, e.clientY);
-      if (pos) {
-        const finalX = Math.max(10, Math.min(90, pos.x + dragOffset.x));
-        const finalY = Math.max(10, Math.min(90, pos.y + dragOffset.y));
-        onToppingMove(draggingId, finalX, finalY);
-      }
-    } else {
-      const msg = messages.find((m) => m.id === draggingId);
-      if (msg) onToppingClick(msg);
-    }
-
-    setDraggingId(null);
-    dragStartPos.current = null;
-    hasMoved.current = false;
-  };
-
-  // Cream drip heights - computed once and stored
-  const [dripHeights] = useState(() =>
-    Array.from({ length: 8 }, () => 20 + Math.random() * 30)
-  );
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -121,108 +49,86 @@ export default function CakeView({
           </p>
         )}
         <p className="text-xs text-gray-400 mt-1">
-          {onToppingMove
-            ? '토핑을 드래그하여 위치를 변경하거나, 클릭하면 메시지를 볼 수 있어요'
-            : '토핑을 클릭하면 축하 메시지를 볼 수 있어요'}
+          토핑을 클릭하면 축하 메시지를 볼 수 있어요
         </p>
       </div>
 
       {/* Cake display */}
       <div className="relative">
         {/* Cake plate */}
-        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-[340px] h-[40px] bg-gray-200 rounded-[50%] shadow-lg" />
+        <div
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-[320px] h-[24px] rounded-[50%]"
+          style={{
+            background: 'linear-gradient(180deg, #e5e7eb, #d1d5db)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+          }}
+        />
 
-        {/* Cake body (side view) */}
-        <div className="relative">
-          {/* Cake top (ellipse) */}
+        {/* Cake wrapper - toppings are positioned within this */}
+        <div className="relative w-[300px]">
+          {/* Cake top surface */}
           <div
-            ref={cakeTopRef}
-            className="w-[300px] h-[60px] rounded-[50%] relative z-10 border-2 shadow-inner"
+            className="w-full h-[50px] rounded-[50%] relative z-[5]"
             style={{
               background: `linear-gradient(135deg, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
-              borderColor: cakeType.borderColor,
-              touchAction: 'none',
-            }}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-          >
-            {/* Toppings on top of cake */}
-            {messages.map((msg) => {
-              const topping = getToppingById(msg.toppingId);
-              const isDragging = draggingId === msg.id;
-              return (
-                <button
-                  key={msg.id}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 text-4xl transition-transform z-20 drop-shadow-md ${
-                    isDragging
-                      ? 'scale-150 drop-shadow-lg cursor-grabbing z-30'
-                      : onToppingMove
-                        ? 'hover:scale-125 cursor-grab hover:drop-shadow-lg'
-                        : 'hover:scale-125 cursor-pointer hover:drop-shadow-lg'
-                  }`}
-                  style={{
-                    left: `${msg.positionX}%`,
-                    top: `${msg.positionY}%`,
-                  }}
-                  onPointerDown={(e) => handlePointerDown(e, msg)}
-                  onClick={(e) => {
-                    if (!onToppingMove) {
-                      e.stopPropagation();
-                      onToppingClick(msg);
-                    }
-                  }}
-                  title={msg.isAnonymous ? '익명의 축하' : `${msg.author}의 축하`}
-                >
-                  <span className={isDragging ? '' : 'animate-wiggle inline-block hover:animate-bounce'}>
-                    {topping?.emoji || '🎂'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Cake side */}
-          <div
-            className="w-[300px] h-[140px] -mt-[30px] rounded-b-[20px] border-x-2 border-b-2 relative overflow-hidden"
-            style={{
-              background: `linear-gradient(180deg, ${cakeType.sideColor}, ${cakeType.gradientTo})`,
-              borderColor: cakeType.borderColor,
-            }}
-          >
-            {/* Cream drips */}
-            <div className="absolute top-0 left-0 w-full flex justify-around">
-              {dripHeights.map((h, i) => (
-                <div
-                  key={i}
-                  className="w-6 rounded-b-full"
-                  style={{
-                    height: `${h}px`,
-                    background: cakeType.gradientFrom,
-                    opacity: 0.6,
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Cake layers */}
-            <div
-              className="absolute bottom-0 w-full h-[3px]"
-              style={{ background: cakeType.borderColor, bottom: '45px' }}
-            />
-            <div
-              className="absolute bottom-0 w-full h-[3px]"
-              style={{ background: cakeType.borderColor, bottom: '90px' }}
-            />
-          </div>
-
-          {/* Cake bottom ellipse */}
-          <div
-            className="w-[300px] h-[40px] rounded-[50%] -mt-[20px] border-2"
-            style={{
-              background: cakeType.gradientTo,
-              borderColor: cakeType.borderColor,
+              boxShadow: `inset 0 -3px 10px rgba(0,0,0,0.06), 0 0 0 1px ${cakeType.borderColor}50`,
             }}
           />
+
+          {/* Cake body */}
+          <div
+            className="w-full h-[150px] -mt-[25px] rounded-b-[18px] relative overflow-hidden"
+            style={{
+              background: `linear-gradient(180deg, ${cakeType.sideColor} 0%, ${cakeType.gradientTo} 100%)`,
+              boxShadow: `inset 1px 0 0 ${cakeType.borderColor}30, inset -1px 0 0 ${cakeType.borderColor}30, 0 0 0 1px ${cakeType.borderColor}20`,
+            }}
+          >
+            {/* Frosting edge at top */}
+            <div
+              className="absolute top-0 left-0 w-full h-[8px]"
+              style={{
+                background: `linear-gradient(180deg, ${cakeType.gradientFrom}aa, transparent)`,
+              }}
+            />
+
+            {/* Subtle layer divider */}
+            <div className="absolute w-full" style={{ top: '50%' }}>
+              <div
+                className="h-[1px] mx-4 rounded-full"
+                style={{ background: `${cakeType.borderColor}20` }}
+              />
+            </div>
+          </div>
+
+          {/* Cake base */}
+          <div
+            className="w-full h-[28px] rounded-[50%] -mt-[14px]"
+            style={{
+              background: cakeType.gradientTo,
+              boxShadow: `0 0 0 1px ${cakeType.borderColor}40, 0 4px 10px rgba(0,0,0,0.08)`,
+            }}
+          />
+
+          {/* Toppings - positioned across entire cake */}
+          {messages.map((msg) => {
+            const topping = getToppingById(msg.toppingId);
+            return (
+              <button
+                key={msg.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2 text-3xl transition-transform z-10 drop-shadow-md hover:scale-125 cursor-pointer hover:drop-shadow-lg active:scale-110"
+                style={{
+                  left: `${msg.positionX}%`,
+                  top: `${msg.positionY}%`,
+                }}
+                onClick={() => onToppingClick(msg)}
+                title={msg.isAnonymous ? '익명의 축하' : `${msg.author}의 축하`}
+              >
+                <span className="animate-wiggle inline-block hover:animate-bounce">
+                  {topping?.emoji || '🎂'}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

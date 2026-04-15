@@ -4,8 +4,8 @@ import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { nanoid } from 'nanoid';
-import { Cake, Topping } from '@/lib/types';
-import { getCake, addMessage } from '@/lib/store';
+import { Cake, Topping, Message } from '@/lib/types';
+import { getCake, addMessage, getMessages } from '@/lib/store';
 import ToppingSelector from '@/components/ToppingSelector';
 import MessageForm from '@/components/MessageForm';
 
@@ -18,6 +18,7 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
   const [submitting, setSubmitting] = useState(false);
   const [step, setStep] = useState<'topping' | 'message'>('topping');
   const [notFound, setNotFound] = useState(false);
+  const [existingMessages, setExistingMessages] = useState<Message[]>([]);
 
   useEffect(() => {
     const loadCake = async () => {
@@ -28,6 +29,8 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
           return;
         }
         setCake(cakeData);
+        const msgs = await getMessages(id);
+        setExistingMessages(msgs);
       } catch (error) {
         console.error('Failed to load cake:', error);
         setNotFound(true);
@@ -48,6 +51,27 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
     }
   };
 
+  const findNonOverlappingPosition = (existing: Message[]) => {
+    const minDistance = 14;
+    const maxAttempts = 50;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      const x = 10 + Math.random() * 80; // 10% ~ 90%
+      const y = 5 + Math.random() * 85;  // 5% ~ 90%
+
+      const hasOverlap = existing.some((msg) => {
+        const dx = msg.positionX - x;
+        const dy = msg.positionY - y;
+        return Math.sqrt(dx * dx + dy * dy) < minDistance;
+      });
+
+      if (!hasOverlap) return { x, y };
+    }
+
+    // Fallback if all attempts overlap
+    return { x: 10 + Math.random() * 80, y: 5 + Math.random() * 85 };
+  };
+
   const handleSubmit = async (data: {
     author: string;
     content: string;
@@ -59,9 +83,8 @@ export default function DecoratePage({ params }: { params: Promise<{ id: string 
 
     setSubmitting(true);
     try {
-      // Random position on the cake top (within the ellipse area)
-      const positionX = 15 + Math.random() * 70; // 15% ~ 85%
-      const positionY = 15 + Math.random() * 70; // 15% ~ 85%
+      // Find a position that doesn't overlap with existing toppings
+      const { x: positionX, y: positionY } = findNonOverlappingPosition(existingMessages);
 
       await addMessage({
         id: nanoid(10),
