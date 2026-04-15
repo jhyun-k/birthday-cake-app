@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import html2canvas from 'html2canvas';
+import { domToPng } from 'modern-screenshot';
 
 interface CakeCaptureProps {
   targetRef: React.RefObject<HTMLDivElement | null>;
@@ -17,14 +17,10 @@ export default function CakeCapture({ targetRef, ownerName }: CakeCaptureProps) 
     setCapturing(true);
 
     try {
-      const canvas = await html2canvas(targetRef.current, {
+      const dataUrl = await domToPng(targetRef.current, {
         backgroundColor: '#FFF5F7',
         scale: 2,
-        useCORS: true,
-        logging: false,
       });
-
-      const dataUrl = canvas.toDataURL('image/png');
 
       // Try share on mobile, download on desktop
       if (navigator.share && navigator.canShare) {
