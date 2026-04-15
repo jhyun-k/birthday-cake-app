@@ -33,6 +33,14 @@ export default function RootLayout({
       lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js"
+          integrity="sha384-DKYJZ8NLiK8MN4/C5P2vDkVBziJ7ynUKe/cYy2RnKOBOcYMfSR0LB5RPQH9ecST"
+          crossOrigin="anonymous"
+          async
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-gradient-to-b from-pink-50 via-white to-orange-50">
         <Header />
         <main className="flex-1 flex flex-col">{children}</main>

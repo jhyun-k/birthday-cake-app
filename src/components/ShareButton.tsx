@@ -1,6 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+declare global {
+  interface Window {
+    Kakao?: {
+      init: (key: string) => void;
+      isInitialized: () => boolean;
+      Share: {
+        sendDefault: (options: KakaoShareOptions) => void;
+      };
+    };
+  }
+}
+
+interface KakaoShareOptions {
+  objectType: 'feed';
+  content: {
+    title: string;
+    description: string;
+    imageUrl: string;
+    link: { mobileWebUrl: string; webUrl: string };
+  };
+  buttons: Array<{
+    title: string;
+    link: { mobileWebUrl: string; webUrl: string };
+  }>;
+}
 
 interface ShareButtonProps {
   cakeId: string;
@@ -10,12 +36,37 @@ interface ShareButtonProps {
 export default function ShareButton({ cakeId, ownerName }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [kakaoReady, setKakaoReady] = useState(false);
 
   const shareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/cake/${cakeId}`
     : '';
 
   const shareText = `${ownerName}님의 생일케이크를 꾸며주세요! 🎂`;
+
+  useEffect(() => {
+    const initKakao = () => {
+      const kakaoKey = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+      if (window.Kakao && kakaoKey && !window.Kakao.isInitialized()) {
+        window.Kakao.init(kakaoKey);
+        setKakaoReady(true);
+      } else if (window.Kakao?.isInitialized()) {
+        setKakaoReady(true);
+      }
+    };
+
+    if (window.Kakao) {
+      initKakao();
+    } else {
+      const timer = setInterval(() => {
+        if (window.Kakao) {
+          initKakao();
+          clearInterval(timer);
+        }
+      }, 500);
+      return () => clearInterval(timer);
+    }
+  }, []);
 
   const copyLink = async () => {
     try {
@@ -34,9 +85,34 @@ export default function ShareButton({ cakeId, ownerName }: ShareButtonProps) {
     }
   };
 
-  const shareKakao = () => {
-    const kakaoUrl = `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`;
-    window.open(kakaoUrl, '_blank', 'width=600,height=400');
+  const shareKakaoTalk = () => {
+    if (kakaoReady && window.Kakao) {
+      window.Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: '생일케이크를 꾸며줘! 🎂',
+          description: shareText,
+          imageUrl: `${typeof window !== 'undefined' ? window.location.origin : ''}/og-image.png`,
+          link: {
+            mobileWebUrl: shareUrl,
+            webUrl: shareUrl,
+          },
+        },
+        buttons: [
+          {
+            title: '케이크 꾸미러 가기',
+            link: {
+              mobileWebUrl: shareUrl,
+              webUrl: shareUrl,
+            },
+          },
+        ],
+      });
+    } else {
+      // Fallback: KakaoStory share if SDK not ready
+      const kakaoUrl = `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`;
+      window.open(kakaoUrl, '_blank', 'width=600,height=400');
+    }
   };
 
   const shareTwitter = () => {
@@ -83,11 +159,11 @@ export default function ShareButton({ cakeId, ownerName }: ShareButtonProps) {
               {copied ? '복사됨!' : '링크 복사'}
             </button>
             <button
-              onClick={() => { shareKakao(); setShowShare(false); }}
+              onClick={() => { shareKakaoTalk(); setShowShare(false); }}
               className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
             >
               <span className="text-lg">💬</span>
-              카카오스토리 공유
+              카카오톡 공유
             </button>
             <button
               onClick={() => { shareTwitter(); setShowShare(false); }}
