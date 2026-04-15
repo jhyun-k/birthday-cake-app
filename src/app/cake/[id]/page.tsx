@@ -1,16 +1,25 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, useCallback, useRef, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Cake, Message } from '@/lib/types';
-import { getCake, getMessages, deleteCake, deleteMessage, updateMessagePosition } from '@/lib/store';
+import { getCake, getMessages, deleteCake, deleteMessage, updateMessagePosition, subscribeToMessages } from '@/lib/store';
 import { getCakeTypeInfo } from '@/data/cakes';
+import { getToppingById } from '@/data/toppings';
 import CakeView from '@/components/CakeView';
 import MessageModal from '@/components/MessageModal';
 import ShareButton from '@/components/ShareButton';
 import MessageList from '@/components/MessageList';
 import CakeEditModal from '@/components/CakeEditModal';
+import Toast, { ToastMessage } from '@/components/Toast';
+
+function sendBrowserNotification(title: string, body: string) {
+  if (typeof window === 'undefined') return;
+  if (Notification.permission === 'granted' && document.hidden) {
+    new Notification(title, { body, icon: '/favicon.ico' });
+  }
+}
 
 export default function CakePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -23,6 +32,33 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showManageMenu, setShowManageMenu] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
+  const prevMessageCount = useRef<number>(0);
+  const initialLoad = useRef(true);
+
+  const addToast = useCallback((text: string, emoji?: string) => {
+    const id = Date.now().toString();
+    setToasts((prev) => [...prev, { id, text, emoji }]);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Request notification permission
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setNotifPermission(Notification.permission);
+    }
+  }, []);
+
+  const requestNotifPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotifPermission(permission);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -35,15 +71,39 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
         setCake(cakeData);
         const msgs = await getMessages(id);
         setMessages(msgs);
+        prevMessageCount.current = msgs.length;
       } catch (error) {
         console.error('Failed to load cake:', error);
         setNotFound(true);
       } finally {
         setLoading(false);
+        setTimeout(() => { initialLoad.current = false; }, 1000);
       }
     };
     loadData();
-  }, [id]);
+
+    // Subscribe to real-time updates (Firebase only)
+    const unsub = subscribeToMessages(id, (newMessages) => {
+      if (initialLoad.current) return;
+
+      if (newMessages.length > prevMessageCount.current) {
+        const newOnes = newMessages.slice(prevMessageCount.current);
+        for (const msg of newOnes) {
+          const topping = getToppingById(msg.toppingId);
+          const author = msg.isAnonymous ? '익명' : msg.author;
+          addToast(`${author}님이 토핑을 올렸어요!`, topping?.emoji);
+          sendBrowserNotification(
+            '새 축하 메시지!',
+            `${author}님이 케이크에 토핑을 올렸어요!`
+          );
+        }
+      }
+      prevMessageCount.current = newMessages.length;
+      setMessages(newMessages);
+    });
+
+    return () => { unsub?.(); };
+  }, [id, addToast]);
 
   const handleDeleteCake = async () => {
     try {
@@ -59,6 +119,7 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
     try {
       await deleteMessage(id, messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      prevMessageCount.current -= 1;
       setSelectedMessage(null);
     } catch (error) {
       console.error('Failed to delete message:', error);
@@ -114,6 +175,9 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
 
   return (
     <div className="flex-1 flex flex-col items-center px-4 py-8 max-w-2xl mx-auto w-full">
+      {/* Toast notifications */}
+      <Toast messages={toasts} onRemove={removeToast} />
+
       {/* Cake display */}
       <CakeView
         cakeType={cakeTypeInfo}
@@ -123,6 +187,17 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
         ownerName={cake.ownerName}
         birthday={cake.birthday}
       />
+
+      {/* Notification permission banner */}
+      {notifPermission === 'default' && (
+        <button
+          onClick={requestNotifPermission}
+          className="mt-4 flex items-center gap-2 px-4 py-2 bg-pink-50 text-pink-600 text-sm rounded-full border border-pink-200 hover:bg-pink-100 transition-colors"
+        >
+          <span>🔔</span>
+          새 메시지 알림 받기
+        </button>
+      )}
 
       {/* Action buttons */}
       <div className="flex flex-wrap items-center justify-center gap-3 mt-8">

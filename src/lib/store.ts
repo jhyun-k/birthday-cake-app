@@ -7,6 +7,8 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
+  Unsubscribe,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { Cake, Message } from './types';
@@ -132,4 +134,22 @@ export async function updateMessagePosition(
       setLocalData(key, messages);
     }
   }
+}
+
+// ========== Real-time listener ==========
+export function subscribeToMessages(
+  cakeId: string,
+  callback: (messages: Message[]) => void
+): Unsubscribe | null {
+  if (isFirebaseConfigured && db) {
+    const q = query(
+      collection(db, 'cakes', cakeId, 'messages'),
+      orderBy('createdAt', 'asc')
+    );
+    return onSnapshot(q, (snap) => {
+      const msgs = snap.docs.map((d) => d.data() as Message);
+      callback(msgs);
+    });
+  }
+  return null;
 }
