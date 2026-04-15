@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useRef, useCallback } from 'react';
 import { CakeTypeInfo, Message } from '@/lib/types';
 import { getToppingById } from '@/data/toppings';
 
@@ -7,6 +8,7 @@ interface CakeViewProps {
   cakeType: CakeTypeInfo;
   messages: Message[];
   onToppingClick: (message: Message) => void;
+  onToppingMove?: (messageId: string, positionX: number, positionY: number) => void;
   ownerName: string;
   birthday: string;
 }
@@ -15,6 +17,7 @@ export default function CakeView({
   cakeType,
   messages,
   onToppingClick,
+  onToppingMove,
   ownerName,
   birthday,
 }: CakeViewProps) {
@@ -31,6 +34,75 @@ export default function CakeView({
     const diff = thisYear.getTime() - today.getTime();
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   })();
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const cakeTopRef = useRef<HTMLDivElement>(null);
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const hasMoved = useRef(false);
+
+  const getPositionFromEvent = useCallback((clientX: number, clientY: number) => {
+    if (!cakeTopRef.current) return null;
+    const rect = cakeTopRef.current.getBoundingClientRect();
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+    return {
+      x: Math.max(10, Math.min(90, x)),
+      y: Math.max(10, Math.min(90, y)),
+    };
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent, msg: Message) => {
+    if (!onToppingMove) return;
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setDraggingId(msg.id);
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    hasMoved.current = false;
+
+    const pos = getPositionFromEvent(e.clientX, e.clientY);
+    if (pos) {
+      setDragOffset({ x: msg.positionX - pos.x, y: msg.positionY - pos.y });
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!draggingId || !onToppingMove) return;
+    e.preventDefault();
+
+    if (dragStartPos.current) {
+      const dx = Math.abs(e.clientX - dragStartPos.current.x);
+      const dy = Math.abs(e.clientY - dragStartPos.current.y);
+      if (dx > 5 || dy > 5) {
+        hasMoved.current = true;
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!draggingId) return;
+
+    if (hasMoved.current && onToppingMove) {
+      const pos = getPositionFromEvent(e.clientX, e.clientY);
+      if (pos) {
+        const finalX = Math.max(10, Math.min(90, pos.x + dragOffset.x));
+        const finalY = Math.max(10, Math.min(90, pos.y + dragOffset.y));
+        onToppingMove(draggingId, finalX, finalY);
+      }
+    } else {
+      const msg = messages.find((m) => m.id === draggingId);
+      if (msg) onToppingClick(msg);
+    }
+
+    setDraggingId(null);
+    dragStartPos.current = null;
+    hasMoved.current = false;
+  };
+
+  // Cream drip heights - computed once and stored
+  const [dripHeights] = useState(() =>
+    Array.from({ length: 8 }, () => 20 + Math.random() * 30)
+  );
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -49,7 +121,9 @@ export default function CakeView({
           </p>
         )}
         <p className="text-xs text-gray-400 mt-1">
-          토핑을 클릭하면 축하 메시지를 볼 수 있어요
+          {onToppingMove
+            ? '토핑을 드래그하여 위치를 변경하거나, 클릭하면 메시지를 볼 수 있어요'
+            : '토핑을 클릭하면 축하 메시지를 볼 수 있어요'}
         </p>
       </div>
 
@@ -62,27 +136,44 @@ export default function CakeView({
         <div className="relative">
           {/* Cake top (ellipse) */}
           <div
+            ref={cakeTopRef}
             className="w-[300px] h-[60px] rounded-[50%] relative z-10 border-2 shadow-inner"
             style={{
               background: `linear-gradient(135deg, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
               borderColor: cakeType.borderColor,
+              touchAction: 'none',
             }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
           >
             {/* Toppings on top of cake */}
-            {messages.map((msg, index) => {
+            {messages.map((msg) => {
               const topping = getToppingById(msg.toppingId);
+              const isDragging = draggingId === msg.id;
               return (
                 <button
                   key={msg.id}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 text-2xl hover:scale-125 transition-transform cursor-pointer z-20 drop-shadow-md hover:drop-shadow-lg"
+                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 text-2xl transition-transform z-20 drop-shadow-md ${
+                    isDragging
+                      ? 'scale-150 drop-shadow-lg cursor-grabbing z-30'
+                      : onToppingMove
+                        ? 'hover:scale-125 cursor-grab hover:drop-shadow-lg'
+                        : 'hover:scale-125 cursor-pointer hover:drop-shadow-lg'
+                  }`}
                   style={{
                     left: `${msg.positionX}%`,
                     top: `${msg.positionY}%`,
                   }}
-                  onClick={() => onToppingClick(msg)}
+                  onPointerDown={(e) => handlePointerDown(e, msg)}
+                  onClick={(e) => {
+                    if (!onToppingMove) {
+                      e.stopPropagation();
+                      onToppingClick(msg);
+                    }
+                  }}
                   title={msg.isAnonymous ? '익명의 축하' : `${msg.author}의 축하`}
                 >
-                  <span className="animate-wiggle inline-block hover:animate-bounce">
+                  <span className={isDragging ? '' : 'animate-wiggle inline-block hover:animate-bounce'}>
                     {topping?.emoji || '🎂'}
                   </span>
                 </button>
@@ -100,12 +191,12 @@ export default function CakeView({
           >
             {/* Cream drips */}
             <div className="absolute top-0 left-0 w-full flex justify-around">
-              {[...Array(8)].map((_, i) => (
+              {dripHeights.map((h, i) => (
                 <div
                   key={i}
                   className="w-6 rounded-b-full"
                   style={{
-                    height: `${20 + Math.random() * 30}px`,
+                    height: `${h}px`,
                     background: cakeType.gradientFrom,
                     opacity: 0.6,
                   }}

@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Cake, Message } from '@/lib/types';
-import { getCake, getMessages, deleteCake, deleteMessage } from '@/lib/store';
+import { getCake, getMessages, deleteCake, deleteMessage, updateMessagePosition } from '@/lib/store';
 import { getCakeTypeInfo } from '@/data/cakes';
 import CakeView from '@/components/CakeView';
 import MessageModal from '@/components/MessageModal';
@@ -70,6 +70,17 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
     setCake(updated);
   };
 
+  const handleToppingMove = async (messageId: string, positionX: number, positionY: number) => {
+    try {
+      await updateMessagePosition(id, messageId, positionX, positionY);
+      setMessages((prev) =>
+        prev.map((m) => m.id === messageId ? { ...m, positionX, positionY } : m)
+      );
+    } catch (error) {
+      console.error('Failed to move topping:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -108,6 +119,7 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
         cakeType={cakeTypeInfo}
         messages={messages}
         onToppingClick={setSelectedMessage}
+        onToppingMove={handleToppingMove}
         ownerName={cake.ownerName}
         birthday={cake.birthday}
       />
