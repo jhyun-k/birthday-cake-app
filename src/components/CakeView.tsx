@@ -44,16 +44,6 @@ export default function CakeView({
       color: SPRINKLE_COLORS[i % SPRINKLE_COLORS.length],
     })), []);
 
-  // Deterministic cream puffs positions along the elliptical edge
-  const creamPuffs = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => {
-      const angle = (i / 14) * Math.PI;
-      return {
-        left: 50 + Math.cos(angle) * 46,
-        top: 50 + Math.sin(angle) * 30,
-      };
-    }), []);
-
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Birthday status */}
@@ -103,22 +93,6 @@ export default function CakeView({
                 border: `1.5px dashed ${cakeType.borderColor}35`,
               }}
             />
-          </div>
-
-          {/* Cream piping along top-body edge */}
-          <div className="absolute z-[6]" style={{ top: '28px', left: '0', width: '100%', height: '30px' }}>
-            {creamPuffs.map((puff, i) => (
-              <div
-                key={i}
-                className="absolute w-[18px] h-[14px] rounded-full -translate-x-1/2 -translate-y-1/2"
-                style={{
-                  left: `${puff.left}%`,
-                  top: `${puff.top}%`,
-                  background: `radial-gradient(ellipse at 40% 35%, ${cakeType.gradientFrom}, ${cakeType.gradientTo})`,
-                  boxShadow: `0 1px 2px rgba(0,0,0,0.08)`,
-                }}
-              />
-            ))}
           </div>
 
           {/* Cake body */}
