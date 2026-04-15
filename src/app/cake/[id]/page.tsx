@@ -13,6 +13,7 @@ import ShareButton from '@/components/ShareButton';
 import MessageList from '@/components/MessageList';
 import CakeEditModal from '@/components/CakeEditModal';
 import Toast, { ToastMessage } from '@/components/Toast';
+import CakeCapture from '@/components/CakeCapture';
 
 function sendBrowserNotification(title: string, body: string) {
   if (typeof window === 'undefined') return;
@@ -36,6 +37,7 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
   const [notifPermission, setNotifPermission] = useState<NotificationPermission>('default');
   const prevMessageCount = useRef<number>(0);
   const initialLoad = useRef(true);
+  const cakeViewRef = useRef<HTMLDivElement>(null);
 
   const addToast = useCallback((text: string, emoji?: string) => {
     const id = Date.now().toString();
@@ -179,14 +181,16 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
       <Toast messages={toasts} onRemove={removeToast} />
 
       {/* Cake display */}
-      <CakeView
-        cakeType={cakeTypeInfo}
-        messages={messages}
-        onToppingClick={setSelectedMessage}
-        onToppingMove={handleToppingMove}
-        ownerName={cake.ownerName}
-        birthday={cake.birthday}
-      />
+      <div ref={cakeViewRef}>
+        <CakeView
+          cakeType={cakeTypeInfo}
+          messages={messages}
+          onToppingClick={setSelectedMessage}
+          onToppingMove={handleToppingMove}
+          ownerName={cake.ownerName}
+          birthday={cake.birthday}
+        />
+      </div>
 
       {/* Notification permission banner */}
       {notifPermission === 'default' && (
@@ -209,6 +213,7 @@ export default function CakePage({ params }: { params: Promise<{ id: string }> }
           토핑 올리기
         </Link>
         <ShareButton cakeId={id} ownerName={cake.ownerName} />
+        <CakeCapture targetRef={cakeViewRef} ownerName={cake.ownerName} />
 
         {/* Manage menu */}
         <div className="relative">
