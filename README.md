@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 생일케이크를 꾸며줘! 🎂
 
-## Getting Started
+소중한 사람의 생일 케이크를 만들고, 친구들이 토핑과 축하 메시지를 남길 수 있는 웹앱입니다.
 
-First, run the development server:
+## 사용 방법
+
+### 1. 케이크 만들기
+- 메인 페이지에서 **이름**, **생일 날짜**, **케이크 종류**(크림, 초콜릿, 딸기, 바닐라)를 선택합니다.
+- "케이크 만들기" 버튼을 누르면 나만의 케이크가 생성됩니다.
+
+### 2. 링크 공유하기
+- 생성된 케이크 페이지에서 **공유** 버튼을 눌러 링크를 복사하거나 카카오톡으로 공유할 수 있습니다.
+- 공유 받은 친구들은 링크를 통해 케이크에 접속합니다.
+
+### 3. 토핑 올리기 (축하 메시지 남기기)
+- "토핑 올리기" 버튼을 클릭합니다.
+- 과일, 과자/사탕, 장식 중 원하는 토핑을 선택합니다.
+- 작성자 이름과 축하 메시지를 입력합니다.
+  - **익명 작성**: 이름을 숨기고 메시지를 남길 수 있습니다.
+  - **비밀글**: 숫자 4자리 비밀번호를 설정하면 비밀글로 작성됩니다.
+- "토핑 올리기!" 버튼을 누르면 케이크 위에 토핑이 올라갑니다.
+
+### 4. 메시지 확인하기
+- 케이크 위의 토핑을 클릭하면 해당 축하 메시지를 볼 수 있습니다.
+- 비밀글은 비밀번호를 입력해야 확인할 수 있습니다.
+- 케이크 아래 메시지 목록에서도 모든 메시지를 확인할 수 있습니다.
+
+### 5. 케이크 관리
+- **관리** 버튼에서 케이크 정보를 수정하거나 삭제할 수 있습니다.
+- 케이크 주인은 토핑을 드래그하여 위치를 변경할 수 있습니다.
+- 케이크 이미지를 캡처하여 저장할 수도 있습니다.
+
+### 6. 실시간 알림
+- 새로운 메시지가 등록되면 실시간 토스트 알림이 표시됩니다.
+- 브라우저 알림을 허용하면 다른 탭에 있을 때도 알림을 받을 수 있습니다.
+
+## 기술 스택
+
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
+- **Database**: Firebase Firestore
+- **Deployment**: Vercel
+
+## 로컬 개발
 
 ```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+http://localhost:3000 에서 확인할 수 있습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 환경변수
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Firebase를 사용하려면 `.env.local` 파일에 아래 환경변수를 설정하세요:
 
-## Learn More
+```
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+```
 
-To learn more about Next.js, take a look at the following resources:
+카카오톡 공유 기능을 사용하려면:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+NEXT_PUBLIC_KAKAO_JS_KEY=
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Firebase 환경변수가 없으면 localStorage를 사용한 로컬 모드로 동작합니다.

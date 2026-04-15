@@ -153,7 +153,7 @@ export default function CakeView({
               return (
                 <button
                   key={msg.id}
-                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 text-2xl transition-transform z-20 drop-shadow-md ${
+                  className={`absolute transform -translate-x-1/2 -translate-y-1/2 text-4xl transition-transform z-20 drop-shadow-md ${
                     isDragging
                       ? 'scale-150 drop-shadow-lg cursor-grabbing z-30'
                       : onToppingMove
