@@ -1,4 +1,4 @@
-@import "C:/Users/toonation/birthday-cake-app/node_modules/tailwindcss/index.css";
+@import "tailwindcss";
 
 @theme inline {
   --color-background: #ffffff;
